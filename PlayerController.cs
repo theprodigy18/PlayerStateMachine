@@ -14,6 +14,16 @@ namespace Drop
 		[HideInInspector] public Animator animator;
 		[HideInInspector] public InputManager inputManager;
 
+		[Header("Visual Effects")]
+		[SerializeField] private ParticleSystem _dustParticle;
+		[SerializeField] private ParticleSystem _jumpDustParticle;
+		[SerializeField] private TrailRenderer _jumpTrail;
+
+		[Header("Sound Effects")]
+		[SerializeField] private AudioClip _jumpSFX;
+		[SerializeField] private AudioClip _landSFX;
+		private AudioSource _audioSource;
+		
 		// Movement variables.
 		private Vector2 _moveVelocity;
 		private bool _isFacingRight;
@@ -52,6 +62,43 @@ namespace Drop
 		public PlayerLandingState landingState;
 		private PlayerBaseState _currentState;
 
+		// Cache animator state.
+		private bool _isMovingAnimator;
+		private bool IsMovingAnimator
+		{
+			set
+			{
+				if (_isMovingAnimator != value)
+				{
+					animator.SetBool("isMoving", value);
+					_isMovingAnimator = value;
+				}
+			}
+		}
+		private bool _isRunningAnimator;
+		private bool IsRunningAnimator
+		{
+			set
+			{
+				if (_isRunningAnimator != value)
+				{
+					animator.SetBool("isRunning", value);
+					_isRunningAnimator = value;
+				}
+			}
+		}
+		private bool _isGroundedAnimator;
+		private bool IsGroundedAnimator
+		{
+			set
+			{
+				if (_isGroundedAnimator != value)
+				{
+					animator.SetBool("isGrounded", value);
+					_isGroundedAnimator = value;
+				}
+			}
+		}
 
 		private void Awake()
 		{
@@ -59,6 +106,7 @@ namespace Drop
 
 			rb = GetComponent<Rigidbody2D>();
 			animator = GetComponent<Animator>();
+			_audioSource = GetComponent<AudioSource>();
 
 			groundedState = new PlayerGroundedState();
 			jumpingState = new PlayerJumpingState();
@@ -78,6 +126,8 @@ namespace Drop
 			CountTimers();
 
 			_currentState.Update();
+
+			animator.SetFloat("yVelocity", VerticalVelocity);
 		}
 
 		private void FixedUpdate()
@@ -87,6 +137,7 @@ namespace Drop
 			_currentState.FixedUpdate();
 		}
 
+		#region MOVEMENT
 		public void Move(float acceleration, float deceleration)
 		{
 			Vector2 moveInput = inputManager.Movement;
@@ -100,23 +151,23 @@ namespace Drop
 				if (InputManager.Instance.RunIsHeld)
 				{
 					targetVelocity = new Vector2(moveInput.x, 0f) * moveStats.maxRunSpeed;
-					animator.SetBool("isRunning", true);
+					IsRunningAnimator = true;
 				}
 				else
 				{
 					targetVelocity = new Vector2(moveInput.x, 0f) * moveStats.maxWalkSpeed;
-					animator.SetBool("isRunning", false);
+					IsRunningAnimator = false;
 				}
 
 				_moveVelocity = Vector2.Lerp(_moveVelocity, targetVelocity, acceleration * Time.fixedDeltaTime);
 				rb.linearVelocity = new Vector2(_moveVelocity.x, rb.linearVelocity.y);
-				animator.SetBool("isMoving", true);
+				IsMovingAnimator = true;
 			}
 			else
 			{
 				_moveVelocity = Vector2.Lerp(_moveVelocity, Vector2.zero, deceleration * Time.fixedDeltaTime);
 				rb.linearVelocity = new Vector2(_moveVelocity.x, rb.linearVelocity.y);
-				animator.SetBool("isMoving", false);
+				IsMovingAnimator = false;
 			}
 		}
 
@@ -126,14 +177,19 @@ namespace Drop
 			{
 				_isFacingRight = false;
 				transform.Rotate(0f, -180f, 0f);
+				if (isGrounded) _dustParticle.Play();
 			}
 			else if (!_isFacingRight && moveInput.x > 0f)
 			{
 				_isFacingRight = true;
 				transform.Rotate(0f, 180f, 0f);
+				if (isGrounded) _dustParticle.Play();
 			}
 		}
 
+		#endregion
+
+		#region COLLISION
 		private void IsGrounded()
 		{
 			Vector2 boxCastOrigin = new Vector2(feetColl.bounds.center.x, feetColl.bounds.min.y);
@@ -150,7 +206,7 @@ namespace Drop
 				isGrounded = false;
 			}
 
-			animator.SetBool("isGrounded", isGrounded);
+			IsGroundedAnimator = isGrounded;
 		}
 
 		private void BumpedHead()
@@ -177,6 +233,7 @@ namespace Drop
 			BumpedHead();
 		}
 
+		#endregion
 		private void CountTimers()
 		{
 			jumpBufferTimer -= Time.deltaTime;
@@ -214,6 +271,25 @@ namespace Drop
 
 			_currentState = state;
 			_currentState.Enter(this);
+		}
+
+		public void JumpEffect()
+		{
+			animator.SetTrigger("jump");
+			_jumpDustParticle.Play();
+			_jumpTrail.emitting = true;
+			_audioSource.pitch = Random.Range(0.9f, 1.1f);
+			_audioSource.clip = _jumpSFX;
+			_audioSource.Play();
+		}
+
+		public void Landing()
+		{
+			_jumpDustParticle.Play();
+			_jumpTrail.emitting = false;
+			_audioSource.pitch = Random.Range(0.9f, 1.1f);
+			_audioSource.clip = _landSFX;
+			_audioSource.Play();
 		}
 	}
 }

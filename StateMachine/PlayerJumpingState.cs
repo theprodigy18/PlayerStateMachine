@@ -19,6 +19,8 @@ namespace Drop.StateMachine
 				_player.fastFallReleaseSpeed = _player.VerticalVelocity;
 			}
 
+			_player.JumpEffect();
+
 			Debug.Log("Enter Jumping State.");
 		}
 
@@ -48,6 +50,8 @@ namespace Drop.StateMachine
 				_player.isFastFalling = false;
 				_player.VerticalVelocity = _player.moveStats.InitialJumpVelocity;
 				_player.numOfJumpUsed += 1;
+
+				_player.JumpEffect();
 			}
 		}
 

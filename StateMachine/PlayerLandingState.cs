@@ -16,6 +16,7 @@ namespace Drop.StateMachine
 			_player.numOfJumpUsed = 0;
 
 			_player.VerticalVelocity = Physics2D.gravity.y;
+			_player.Landing();
 
 			Debug.Log("Enter Landing State.");
 		}
